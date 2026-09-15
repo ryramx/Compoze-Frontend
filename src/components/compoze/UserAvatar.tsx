@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { User } from "@/data/types";
+import type { User } from "@/types";
 import { cn } from "@/lib/utils";
 
 interface Props {

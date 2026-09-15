@@ -9,6 +9,9 @@ import {
   MapPin,
   User as UserIcon,
   Trash2,
+  Settings,
+  HelpCircle,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -26,6 +29,7 @@ import {
 import { Logo } from "@/components/compoze/Logo";
 import { useCompoze } from "@/store/compozeStore";
 import { UserAvatar } from "@/components/compoze/UserAvatar";
+import { HelpDialog } from "@/components/compoze/HelpDialog";
 import { cn } from "@/lib/utils";
 
 const mainItems = [
@@ -50,7 +54,7 @@ export function AppSidebar() {
     url === "/" ? location.pathname === "/" : location.pathname.startsWith(url);
   const me = useCompoze((s) => s.users.find((u) => u.id === s.currentUserId));
 
-  const renderItem = (item: { title: string; url: string; icon: any }) => (
+  const renderItem = (item: { title: string; url: string; icon: LucideIcon }) => (
     <SidebarMenuItem key={item.title}>
       <SidebarMenuButton asChild tooltip={item.title}>
         <NavLink
@@ -103,6 +107,28 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-3">
+        <div className="mb-1 space-y-0.5">
+          <NavLink
+            to="/settings"
+            className={({ isActive: a }) =>
+              cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                a
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+              )
+            }
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            {!collapsed && <span className="font-medium">Configurações</span>}
+          </NavLink>
+          <HelpDialog>
+            <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground">
+              <HelpCircle className="h-4 w-4 shrink-0" />
+              {!collapsed && <span className="font-medium">Ajuda</span>}
+            </button>
+          </HelpDialog>
+        </div>
         <NavLink
           to="/profile"
           className={({ isActive: a }) =>

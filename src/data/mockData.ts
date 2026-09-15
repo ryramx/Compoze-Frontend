@@ -1,4 +1,4 @@
-import type { User, Song, Project, Folder, FeedItem, Conversation } from "./types";
+import type { User, Song, Project, Folder, FeedItem, Conversation, Follow } from "@/types";
 
 export const CURRENT_USER_ID = "u1";
 
@@ -63,6 +63,13 @@ export const users: User[] = [
     following: 290,
     authorColor: 5,
   },
+];
+
+// Grafo social: quem o usuário atual segue. Única fonte de verdade para
+// "followingIds" no store — evita duplicar essa informação em outro lugar.
+export const follows: Follow[] = [
+  { followerId: "u1", followingId: "u3" },
+  { followerId: "u1", followingId: "u5" },
 ];
 
 export const folders: Folder[] = [
@@ -132,6 +139,7 @@ export const songs: Song[] = [
     collaborators: [{ userId: "u1", percentage: 100 }],
     createdAt: "2026-04-15T08:00:00Z",
     updatedAt: "2026-04-15T08:30:00Z",
+    projectId: "p2",
     folderId: "f1",
     blocks: [
       { id: "b1", type: "note", text: "Música pra navegar. Possível tema: voltar pro mar.", authorId: "u1" },
@@ -167,6 +175,7 @@ export const songs: Song[] = [
     collaborators: [{ userId: "u1", percentage: 100 }],
     createdAt: "2025-11-10T10:00:00Z",
     updatedAt: "2026-01-22T14:00:00Z",
+    projectId: "p3",
     folderId: "f4",
     blocks: [
       { id: "b1", type: "section", label: "Refrão", text: "", authorId: "u1" },
@@ -184,6 +193,7 @@ export const songs: Song[] = [
     ],
     createdAt: "2025-10-01T10:00:00Z",
     updatedAt: "2025-12-15T10:00:00Z",
+    projectId: "p3",
     blocks: [
       { id: "b1", type: "section", label: "Verso", text: "", authorId: "u4" },
       { id: "b2", type: "lyric-line", text: "Você chegou na boa hora, eu jurava perdido", authorId: "u4" },

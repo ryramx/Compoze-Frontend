@@ -17,10 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { SongStatus } from "@/data/types";
+import type { SongStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { listActive } from "@/services/mock/songService";
 
 const filters: { value: "all" | SongStatus; label: string }[] = [
   { value: "all", label: "Todas" },
@@ -49,7 +50,7 @@ export default function Songs() {
     const order: Record<SongStatus, number> = {
       ideia: 0, escrita: 1, revisao: 2, finalizada: 3, registrada: 4, gravada: 5,
     };
-    const list = songs
+    const list = listActive(songs)
       .filter((s) => (filter === "all" ? true : s.status === filter))
       .filter((s) => s.title.toLowerCase().includes(query.toLowerCase()));
     if (sort === "recent") return [...list].sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt));

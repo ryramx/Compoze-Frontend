@@ -97,7 +97,7 @@ export default function MapPage() {
             </button>
           ))}
           <Button asChild variant="outline" className="w-full rounded-full border-border/60">
-            <Link to={`/profile`}>Ver perfil</Link>
+            <Link to={`/profile/${active.username}`}>Ver perfil</Link>
           </Button>
         </Card>
       </div>

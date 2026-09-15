@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useCompoze } from "@/store/compozeStore";
-import type { SongBlock } from "@/data/types";
+import type { SongBlock } from "@/types";
 
 interface Props {
   block: SongBlock;

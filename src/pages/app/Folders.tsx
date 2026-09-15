@@ -4,29 +4,20 @@ import { ChevronRight, Disc3, Folder as FolderIcon, FolderPlus, Music4 } from "l
 import { useCompoze } from "@/store/compozeStore";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { SongPreviewModal } from "@/components/compoze/SongPreviewModal";
 import { StatusBadge } from "@/components/compoze/StatusBadge";
+import { NewFolderDialog } from "@/components/compoze/NewFolderDialog";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { listActive } from "@/services/mock/songService";
 
 export default function Folders() {
   const folders = useCompoze((s) => s.folders);
-  const songs = useCompoze((s) => s.songs);
+  const songs = listActive(useCompoze((s) => s.songs));
   const projects = useCompoze((s) => s.projects);
   const createFolder = useCompoze((s) => s.createFolder);
 
   const [currentId, setCurrentId] = useState<string | undefined>(undefined);
   const [openSong, setOpenSong] = useState<string | null>(null);
-  const [newName, setNewName] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const isRoot = currentId === undefined;
 
@@ -43,8 +34,11 @@ export default function Folders() {
     return [...path, ...acc];
   }, [currentId, folders]);
 
-  // Root: only folders. Inside: only songs + projects related to that folder.
-  const visibleFolders = isRoot ? folders.filter((f) => !f.parentId) : [];
+  // Root: only top-level folders. Inside a folder: its subfolders (if any),
+  // plus the songs/projects that live directly in it.
+  const visibleFolders = isRoot
+    ? folders.filter((f) => !f.parentId)
+    : folders.filter((f) => f.parentId === currentId);
   const visibleSongs = isRoot ? [] : songs.filter((s) => s.folderId === currentId);
   const folderSongIds = visibleSongs.map((s) => s.id);
   const visibleProjects = isRoot
@@ -62,39 +56,11 @@ export default function Folders() {
               : "Canções e projetos desta pasta."}
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="rounded-full bg-primary text-primary-foreground shadow-glow hover:bg-primary/90">
-              <FolderPlus className="h-4 w-4" /> Nova pasta
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="border-border/60 bg-card/95 backdrop-blur-xl">
-            <DialogHeader>
-              <DialogTitle className="font-display">Criar nova pasta</DialogTitle>
-            </DialogHeader>
-            <Input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Ex: Letras 2026"
-            />
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => {
-                  if (!newName.trim()) return;
-                  createFolder(newName.trim(), currentId);
-                  setNewName("");
-                  setDialogOpen(false);
-                }}
-              >
-                Criar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <NewFolderDialog onCreate={(name) => createFolder(name, currentId)}>
+          <Button className="rounded-full bg-primary text-primary-foreground shadow-glow hover:bg-primary/90">
+            <FolderPlus className="h-4 w-4" /> Nova pasta
+          </Button>
+        </NewFolderDialog>
       </div>
 
       <div className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
@@ -114,26 +80,31 @@ export default function Folders() {
         ))}
       </div>
 
-      {isRoot && (
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {visibleFolders.map((f) => {
-            const total = songs.filter((s) => s.folderId === f.id).length;
-            return (
-              <button
-                key={f.id}
-                onClick={() => setCurrentId(f.id)}
-                className="group rounded-2xl border border-border/60 bg-gradient-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft"
-              >
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <FolderIcon className="h-6 w-6" />
-                </div>
-                <div className="mt-3 font-display font-semibold">{f.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {total} {total === 1 ? "canção" : "canções"}
-                </div>
-              </button>
-            );
-          })}
+      {visibleFolders.length > 0 && (
+        <div>
+          {!isRoot && (
+            <h2 className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">Subpastas</h2>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {visibleFolders.map((f) => {
+              const total = songs.filter((s) => s.folderId === f.id).length;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setCurrentId(f.id)}
+                  className="group rounded-2xl border border-border/60 bg-gradient-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft"
+                >
+                  <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <FolderIcon className="h-6 w-6" />
+                  </div>
+                  <div className="mt-3 font-display font-semibold">{f.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {total} {total === 1 ? "canção" : "canções"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 

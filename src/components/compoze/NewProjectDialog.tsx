@@ -1,5 +1,8 @@
 import { ReactNode, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Disc3 } from "lucide-react";
 import {
   Dialog,
@@ -10,8 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,58 +22,76 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { useCompoze } from "@/store/compozeStore";
 import { toast } from "sonner";
-import type { ProjectStyle, ProjectType } from "@/data/types";
 
 interface Props {
   children: ReactNode;
 }
 
+const schema = z.object({
+  name: z.string().trim().min(1, "Dê um nome para o projeto"),
+  type: z.enum(["single", "ep", "album"]),
+  style: z.enum(["acustico", "banda", "ao-vivo"]),
+  description: z.string().trim().optional(),
+  estimatedCost: z.coerce.number().min(0, "Deve ser 0 ou maior").optional().or(z.literal("")),
+  fundingGoal: z.coerce.number().min(0, "Deve ser 0 ou maior").optional().or(z.literal("")),
+  releaseDate: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof schema>;
+
 export function NewProjectDialog({ children }: Props) {
   const createProject = useCompoze((s) => s.createProject);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [type, setType] = useState<ProjectType>("ep");
-  const [style, setStyle] = useState<ProjectStyle>("banda");
-  const [description, setDescription] = useState("");
-  const [fundingGoal, setFundingGoal] = useState<string>("");
-  const [estimatedCost, setEstimatedCost] = useState<string>("");
-  const [releaseDate, setReleaseDate] = useState<string>("");
 
-  const reset = () => {
-    setName("");
-    setType("ep");
-    setStyle("banda");
-    setDescription("");
-    setFundingGoal("");
-    setEstimatedCost("");
-    setReleaseDate("");
-  };
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      name: "",
+      type: "ep",
+      style: "banda",
+      description: "",
+      estimatedCost: "",
+      fundingGoal: "",
+      releaseDate: "",
+    },
+  });
 
-  const handleCreate = () => {
-    if (!name.trim()) {
-      toast.error("Dê um nome para o projeto");
-      return;
-    }
+  const handleCreate = (values: FormValues) => {
     const id = createProject({
-      name: name.trim(),
-      type,
-      style,
-      description: description.trim(),
-      fundingGoal: fundingGoal ? Number(fundingGoal) : undefined,
-      estimatedCost: estimatedCost ? Number(estimatedCost) : undefined,
-      releaseDate: releaseDate ? new Date(releaseDate).toISOString() : undefined,
+      name: values.name.trim(),
+      type: values.type,
+      style: values.style,
+      description: values.description?.trim(),
+      fundingGoal: values.fundingGoal === "" ? undefined : Number(values.fundingGoal),
+      estimatedCost: values.estimatedCost === "" ? undefined : Number(values.estimatedCost),
+      releaseDate: values.releaseDate ? new Date(values.releaseDate).toISOString() : undefined,
     });
     toast.success("Projeto criado ✨");
     setOpen(false);
-    reset();
+    form.reset();
     navigate(`/projects/${id}`);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) form.reset();
+      }}
+    >
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-lg border-border/60 bg-card/95 backdrop-blur-xl">
         <DialogHeader>
@@ -81,94 +100,139 @@ export function NewProjectDialog({ children }: Props) {
           </DialogTitle>
           <DialogDescription>Crie um single, EP ou álbum para organizar suas canções.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="np-name">Nome</Label>
-            <Input
-              id="np-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Travessia"
-              autoFocus
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleCreate)} className="space-y-4 py-2">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Travessia" autoFocus {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Tipo</Label>
-              <Select value={type} onValueChange={(v) => setType(v as ProjectType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single</SelectItem>
-                  <SelectItem value="ep">EP</SelectItem>
-                  <SelectItem value="album">Álbum</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="single">Single</SelectItem>
+                        <SelectItem value="ep">EP</SelectItem>
+                        <SelectItem value="album">Álbum</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="style"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estilo</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="acustico">Acústico</SelectItem>
+                        <SelectItem value="banda">Banda completa</SelectItem>
+                        <SelectItem value="ao-vivo">Ao vivo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label>Estilo</Label>
-              <Select value={style} onValueChange={(v) => setStyle(v as ProjectStyle)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="acustico">Acústico</SelectItem>
-                  <SelectItem value="banda">Banda completa</SelectItem>
-                  <SelectItem value="ao-vivo">Ao vivo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="np-desc">Descrição</Label>
-            <Textarea
-              id="np-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Conceito, referências, intenção…"
-              rows={3}
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Conceito, referências, intenção…" rows={3} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="np-cost">Custo (R$)</Label>
-              <Input
-                id="np-cost"
-                type="number"
-                value={estimatedCost}
-                onChange={(e) => setEstimatedCost(e.target.value)}
-                placeholder="0"
+            <div className="grid grid-cols-3 gap-3">
+              <FormField
+                control={form.control}
+                name="estimatedCost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Custo (R$)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="fundingGoal"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Meta (R$)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="releaseDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lançamento</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="np-goal">Meta (R$)</Label>
-              <Input
-                id="np-goal"
-                type="number"
-                value={fundingGoal}
-                onChange={(e) => setFundingGoal(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="np-date">Lançamento</Label>
-              <Input
-                id="np-date"
-                type="date"
-                value={releaseDate}
-                onChange={(e) => setReleaseDate(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" className="rounded-full" onClick={() => setOpen(false)}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleCreate}
-            className="rounded-full bg-primary text-primary-foreground shadow-glow hover:bg-primary/90"
-          >
-            Criar projeto
-          </Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="rounded-full bg-primary text-primary-foreground shadow-glow hover:bg-primary/90"
+              >
+                Criar projeto
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

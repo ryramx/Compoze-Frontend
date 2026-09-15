@@ -16,10 +16,12 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import heroStudio from "@/assets/hero-studio.jpg";
 import { useNavigate } from "react-router-dom";
+import { listActive } from "@/services/mock/songService";
 
 export default function Dashboard() {
   const me = useCompoze((s) => s.users.find((u) => u.id === s.currentUserId)!);
-  const songs = useCompoze((s) => s.songs);
+  const allSongs = useCompoze((s) => s.songs);
+  const songs = listActive(allSongs);
   const projects = useCompoze((s) => s.projects);
   const feed = useCompoze((s) => s.feed);
   const getUser = useCompoze((s) => s.getUser);

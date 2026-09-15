@@ -11,6 +11,7 @@ import { UserAvatar } from "@/components/compoze/UserAvatar";
 import { Link } from "react-router-dom";
 import { GlobalSearch } from "@/components/compoze/GlobalSearch";
 import { NotificationsPopover } from "@/components/compoze/NotificationsPopover";
+import { AppBreadcrumb, type BreadcrumbEntry } from "./AppBreadcrumb";
 
 const titles: Record<string, string> = {
   "/": "Dashboard",
@@ -22,7 +23,14 @@ const titles: Record<string, string> = {
   "/map": "Mapa de compositores",
   "/profile": "Perfil",
   "/trash": "Lixeira",
+  "/settings": "Configurações",
 };
+
+// Breadcrumb dinâmico só nas páginas onde ele agrega contexto real
+// (registro hierárquico: canção dentro de "Canções", projeto dentro de
+// "Projetos"). Páginas de nível único continuam usando o título estático.
+const songEditMatch = /^\/songs\/([^/]+)\/edit$/;
+const projectDetailMatch = /^\/projects\/([^/]+)$/;
 
 export default function AppLayout() {
   const location = useLocation();
@@ -33,6 +41,26 @@ export default function AppLayout() {
   const me = useCompoze((s) => s.users.find((u) => u.id === s.currentUserId));
   const createSong = useCompoze((s) => s.createSong);
   const canGoBack = location.pathname !== "/";
+
+  const songId = location.pathname.match(songEditMatch)?.[1];
+  const projectId = location.pathname.match(projectDetailMatch)?.[1];
+  const editingSong = useCompoze((s) => (songId ? s.getSong(songId) : undefined));
+  const viewingProject = useCompoze((s) => (projectId ? s.getProject(projectId) : undefined));
+
+  let breadcrumbItems: BreadcrumbEntry[] | null = null;
+  if (songId) {
+    breadcrumbItems = [
+      { label: "Home", to: "/" },
+      { label: "Canções", to: "/songs" },
+      { label: editingSong?.title ?? "Canção" },
+    ];
+  } else if (projectId) {
+    breadcrumbItems = [
+      { label: "Home", to: "/" },
+      { label: "Projetos", to: "/projects" },
+      { label: viewingProject?.name ?? "Projeto" },
+    ];
+  }
 
   return (
     <SidebarProvider defaultOpen>
@@ -52,11 +80,15 @@ export default function AppLayout() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             )}
-            <div className="hidden md:flex flex-col">
+            <div className="hidden min-w-0 md:flex flex-col">
               <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
                 Compoze
               </span>
-              <h1 className="font-display text-lg font-semibold leading-tight">{title}</h1>
+              {breadcrumbItems ? (
+                <AppBreadcrumb items={breadcrumbItems} />
+              ) : (
+                <h1 className="font-display text-lg font-semibold leading-tight">{title}</h1>
+              )}
             </div>
             <div className="ml-auto flex items-center gap-2">
               <GlobalSearch className="hidden md:block" />

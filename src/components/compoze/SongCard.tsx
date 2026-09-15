@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Music4, Clock, Mic2, Trash2 } from "lucide-react";
-import type { Song } from "@/data/types";
+import type { Song } from "@/types";
 import { useCompoze } from "@/store/compozeStore";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "./StatusBadge";

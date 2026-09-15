@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import type { SongStatus } from "@/data/types";
+import type { SongStatus } from "@/types";
 import { cn } from "@/lib/utils";
 
 const statusMap: Record<SongStatus, { label: string; className: string }> = {

@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { useCompoze } from "@/store/compozeStore";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "./UserAvatar";
+import { listActive } from "@/services/mock/songService";
 
 export function GlobalSearch({ className }: { className?: string }) {
-  const songs = useCompoze((s) => s.songs);
+  const songs = listActive(useCompoze((s) => s.songs));
   const projects = useCompoze((s) => s.projects);
   const users = useCompoze((s) => s.users);
   const [query, setQuery] = useState("");
@@ -93,7 +94,7 @@ export function GlobalSearch({ className }: { className?: string }) {
               {results.users.length > 0 && (
                 <Section label="Compositores">
                   {results.users.map((u) => (
-                    <Row key={u.id} onClick={() => go(`/profile`)}>
+                    <Row key={u.id} onClick={() => go(`/profile/${u.username}`)}>
                       <UserAvatar user={u} size="xs" />
                       <span className="truncate">{u.name}</span>
                       <span className="ml-auto text-xs text-muted-foreground">@{u.username}</span>

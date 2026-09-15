@@ -6,7 +6,7 @@ import { UserAvatar } from "@/components/compoze/UserAvatar";
 import { StatusBadge } from "@/components/compoze/StatusBadge";
 import { useState } from "react";
 import { SongPreviewModal } from "@/components/compoze/SongPreviewModal";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import {
   Drawer,
@@ -18,59 +18,80 @@ import {
 } from "@/components/ui/drawer";
 import { CollaboratorStack } from "@/components/compoze/CollaboratorStack";
 import { cn } from "@/lib/utils";
+import { listActive } from "@/services/mock/songService";
+import { getByUsername } from "@/services/mock/userService";
 
 export default function Profile() {
+  const { username } = useParams();
   const me = useCompoze((s) => s.users.find((u) => u.id === s.currentUserId)!);
-  const allSongs = useCompoze((s) => s.songs);
+  const users = useCompoze((s) => s.users);
+  const allSongs = listActive(useCompoze((s) => s.songs));
   const allProjects = useCompoze((s) => s.projects);
   const followingIds = useCompoze((s) => s.followingIds);
   const toggleFollow = useCompoze((s) => s.toggleFollow);
   const toggleHidden = useCompoze((s) => s.toggleSongHidden);
   const [openSong, setOpenSong] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const isFollowing = followingIds.includes(me.id);
-  const isOwner = true; // viewing own profile
 
-  const projects = allProjects.filter((p) => p.collaboratorIds.includes(me.id));
-  const mySongs = allSongs.filter(
-    (x) => x.creatorId === me.id || x.collaborators.some((c) => c.userId === me.id),
+  // /profile = meu perfil. /profile/:username = perfil de terceiros — mas
+  // se o username for o meu próprio, redireciona para a URL canônica /profile.
+  const profileUser = username ? getByUsername(users, username) : me;
+  if (username && profileUser?.id === me.id) {
+    return <Navigate to="/profile" replace />;
+  }
+
+  if (username && !profileUser) {
+    return (
+      <div className="mx-auto max-w-3xl p-8 text-center">
+        <p className="text-muted-foreground">Compositor não encontrado.</p>
+      </div>
+    );
+  }
+
+  const user = profileUser!;
+  const isOwner = user.id === me.id;
+  const isFollowing = followingIds.includes(user.id);
+
+  const projects = allProjects.filter((p) => p.collaboratorIds.includes(user.id));
+  const userSongs = allSongs.filter(
+    (x) => x.creatorId === user.id || x.collaborators.some((c) => c.userId === user.id),
   );
   // Public list hides 🔒 songs. Owner sees all with badge.
-  const publicSongs = mySongs.filter((s) => !s.hidden);
-  const drawerSongs = isOwner ? mySongs : publicSongs;
+  const publicSongs = userSongs.filter((s) => !s.hidden);
+  const drawerSongs = isOwner ? userSongs : publicSongs;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
       <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-card p-6 md:p-10">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
         <div className="relative flex flex-col items-start gap-6 md:flex-row md:items-end">
-          <UserAvatar user={me} size="xl" ring />
+          <UserAvatar user={user} size="xl" ring />
           <div className="flex-1">
-            <h1 className="font-display text-3xl md:text-4xl font-bold">{me.name}</h1>
-            <div className="text-sm text-muted-foreground">@{me.username}</div>
-            <p className="mt-3 max-w-xl text-sm">{me.bio}</p>
+            <h1 className="font-display text-3xl md:text-4xl font-bold">{user.name}</h1>
+            <div className="text-sm text-muted-foreground">@{user.username}</div>
+            <p className="mt-3 max-w-xl text-sm">{user.bio}</p>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3 w-3" /> {me.location.city}, {me.location.country}
+                <MapPin className="h-3 w-3" /> {user.location.city}, {user.location.country}
               </span>
-              {me.instagram && (
+              {user.instagram && (
                 <a
-                  href={`https://instagram.com/${me.instagram}`}
+                  href={`https://instagram.com/${user.instagram}`}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-primary hover:underline"
                 >
-                  <Instagram className="h-3 w-3" /> @{me.instagram}
+                  <Instagram className="h-3 w-3" /> @{user.instagram}
                 </a>
               )}
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-5 text-sm">
               <div>
-                <span className="font-display text-xl font-bold">{me.followers.toLocaleString("pt-BR")}</span>{" "}
+                <span className="font-display text-xl font-bold">{user.followers.toLocaleString("pt-BR")}</span>{" "}
                 <span className="text-muted-foreground">seguidores</span>
               </div>
               <div>
-                <span className="font-display text-xl font-bold">{me.following.toLocaleString("pt-BR")}</span>{" "}
+                <span className="font-display text-xl font-bold">{user.following.toLocaleString("pt-BR")}</span>{" "}
                 <span className="text-muted-foreground">seguindo</span>
               </div>
               <div>
@@ -89,7 +110,7 @@ export default function Profile() {
               <DrawerContent className="border-border/60 bg-card/95 backdrop-blur-xl">
                 <DrawerHeader>
                   <DrawerTitle className="font-display text-xl">
-                    Canções de {me.name.split(" ")[0]}
+                    Canções de {user.name.split(" ")[0]}
                   </DrawerTitle>
                   <p className="text-xs text-muted-foreground">
                     {drawerSongs.length} canções{isOwner && " (incluindo invisíveis para outros)"}
@@ -148,19 +169,23 @@ export default function Profile() {
                 </div>
               </DrawerContent>
             </Drawer>
-            <Button
-              onClick={() => toggleFollow(me.id)}
-              className={cn("rounded-full", !isFollowing && "bg-gradient-hero text-primary-foreground shadow-glow")}
-              variant={isFollowing ? "outline" : "default"}
-            >
-              {isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-              {isFollowing ? "Seguindo" : "Seguir"}
-            </Button>
-            <Button asChild variant="outline" className="rounded-full">
-              <Link to="/messages">
-                <MessageCircle className="h-4 w-4" /> Mensagem
-              </Link>
-            </Button>
+            {!isOwner && (
+              <>
+                <Button
+                  onClick={() => toggleFollow(user.id)}
+                  className={cn("rounded-full", !isFollowing && "bg-gradient-hero text-primary-foreground shadow-glow")}
+                  variant={isFollowing ? "outline" : "default"}
+                >
+                  {isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                  {isFollowing ? "Seguindo" : "Seguir"}
+                </Button>
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link to="/messages">
+                    <MessageCircle className="h-4 w-4" /> Mensagem
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -187,7 +212,7 @@ export default function Profile() {
 
       <Card className="border-border/60 bg-gradient-card p-5">
         <div className="text-xs uppercase tracking-widest text-muted-foreground">Localização</div>
-        <div className="mt-1 font-display text-lg">{me.location.city}, {me.location.country}</div>
+        <div className="mt-1 font-display text-lg">{user.location.city}, {user.location.country}</div>
         <Button asChild variant="link" className="mt-1 px-0 text-primary">
           <Link to="/map">Ver no mapa →</Link>
         </Button>

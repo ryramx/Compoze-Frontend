@@ -11,11 +11,12 @@ import { SongPreviewModal } from "@/components/compoze/SongPreviewModal";
 import { UserAvatar } from "@/components/compoze/UserAvatar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { listActive } from "@/services/mock/songService";
 
 export default function ProjectDetail() {
   const { id } = useParams();
   const project = useCompoze((s) => (id ? s.getProject(id) : undefined));
-  const songs = useCompoze((s) => s.songs);
+  const songs = listActive(useCompoze((s) => s.songs));
   const getUser = useCompoze((s) => s.getUser);
   const [openSong, setOpenSong] = useState<string | null>(null);
 

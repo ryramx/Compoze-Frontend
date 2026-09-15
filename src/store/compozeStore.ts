@@ -4,6 +4,7 @@ import {
   conversations as initialConversations,
   feed as initialFeed,
   folders as initialFolders,
+  follows as initialFollows,
   projects as initialProjects,
   songs as initialSongs,
   users as initialUsers,
@@ -12,11 +13,20 @@ import type {
   Conversation,
   FeedItem,
   Folder,
+  Follow,
   Project,
+  ProjectStyle,
+  ProjectType,
   Song,
   SongBlock,
   User,
-} from "@/data/types";
+} from "@/types";
+import * as songService from "@/services/mock/songService";
+import * as projectService from "@/services/mock/projectService";
+import * as folderService from "@/services/mock/folderService";
+import * as userService from "@/services/mock/userService";
+import * as messageService from "@/services/mock/messageService";
+import * as feedService from "@/services/mock/feedService";
 
 interface CompozeState {
   currentUserId: string;
@@ -26,6 +36,7 @@ interface CompozeState {
   projects: Project[];
   conversations: Conversation[];
   feed: FeedItem[];
+  follows: Follow[];
   followingIds: string[];
 
   // actions
@@ -35,8 +46,8 @@ interface CompozeState {
   createSong: (input: { title: string; folderId?: string; projectId?: string }) => string;
   createProject: (input: {
     name: string;
-    type: Project["type"];
-    style: Project["style"];
+    type: ProjectType;
+    style: ProjectStyle;
     description?: string;
     releaseDate?: string;
     fundingGoal?: number;
@@ -59,236 +70,125 @@ interface CompozeState {
   postFeed: (content: string) => void;
   toggleSongHidden: (songId: string) => void;
   deleteSong: (songId: string) => void;
+  restoreSong: (songId: string) => void;
+  permanentlyDeleteSong: (songId: string) => void;
+  purgeExpiredTrash: () => void;
+  updateCurrentUser: (patch: Partial<Pick<User, "name" | "bio" | "instagram">>) => void;
 }
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+// Roda a "varredura automatizada" de expiração da lixeira (RN07/RN08) sobre
+// um snapshot de songs/projects, devolvendo o resultado já expurgado.
+function withPurgedTrash(songs: Song[], projects: Project[]) {
+  return songService.purgeExpired(songs, projects);
+}
+
+const initialPurge = withPurgedTrash(initialSongs, initialProjects);
 
 export const useCompoze = create<CompozeState>((set, get) => ({
   currentUserId: CURRENT_USER_ID,
   users: initialUsers,
-  songs: initialSongs,
+  songs: initialPurge.songs,
   folders: initialFolders,
-  projects: initialProjects,
+  projects: initialPurge.projects,
   conversations: initialConversations,
   feed: initialFeed,
-  followingIds: ["u3", "u5"],
+  follows: initialFollows,
+  // Campo plano (não um getter) de propósito: o Zustand reconstrói o objeto
+  // de estado a cada set() via Object.assign, o que "congelaria" um getter
+  // de acessor no valor lido na primeira mutação. Em vez disso, toda ação
+  // que muda `follows` também recalcula `followingIds` no mesmo set(),
+  // mantendo os dois sempre consistentes com uma única fonte (`follows`).
+  followingIds: userService.getFollowingIds(initialFollows, CURRENT_USER_ID),
 
-  getUser: (id) => get().users.find((u) => u.id === id),
-  getSong: (id) => get().songs.find((s) => s.id === id),
-  getProject: (id) => get().projects.find((p) => p.id === id),
+  getUser: (id) => userService.getById(get().users, id),
+  getSong: (id) => songService.getById(get().songs, id),
+  getProject: (id) => projectService.getById(get().projects, id),
 
   createSong: ({ title, folderId, projectId }) => {
-    const id = "s_" + uid();
-    const now = new Date().toISOString();
-    const song: Song = {
-      id,
-      title: title || "Nova canção",
-      status: "ideia",
-      creatorId: get().currentUserId,
-      collaborators: [{ userId: get().currentUserId, percentage: 100 }],
-      createdAt: now,
-      updatedAt: now,
+    const { songs, newId } = songService.create(get().songs, {
+      title,
       folderId,
       projectId,
-      blocks: [
-        { id: uid(), type: "section", label: "Verso 1", text: "", authorId: get().currentUserId },
-        { id: uid(), type: "chord-line", text: "C   G   Am   F", authorId: get().currentUserId },
-        { id: uid(), type: "lyric-line", text: "", authorId: get().currentUserId },
-      ],
-    };
-    set({ songs: [song, ...get().songs] });
+      authorId: get().currentUserId,
+    });
+    set({ songs });
     if (projectId) {
-      set({
-        projects: get().projects.map((p) =>
-          p.id === projectId ? { ...p, songIds: [...p.songIds, id] } : p,
-        ),
-      });
+      set({ projects: projectService.addSong(get().projects, projectId, newId) });
     }
-    return id;
+    return newId;
   },
 
-  updateSong: (id, patch) =>
-    set({
-      songs: get().songs.map((s) =>
-        s.id === id ? { ...s, ...patch, updatedAt: new Date().toISOString() } : s,
-      ),
-    }),
+  updateSong: (id, patch) => set({ songs: songService.update(get().songs, id, patch) }),
 
   updateBlock: (songId, blockId, patch) =>
-    set({
-      songs: get().songs.map((s) =>
-        s.id === songId
-          ? {
-              ...s,
-              updatedAt: new Date().toISOString(),
-              blocks: s.blocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b)),
-            }
-          : s,
-      ),
-    }),
+    set({ songs: songService.updateBlock(get().songs, songId, blockId, patch) }),
 
-  addBlock: (songId, block) =>
-    set({
-      songs: get().songs.map((s) =>
-        s.id === songId
-          ? {
-              ...s,
-              updatedAt: new Date().toISOString(),
-              blocks: [...s.blocks, { ...block, id: uid() }],
-            }
-          : s,
-      ),
-    }),
+  addBlock: (songId, block) => set({ songs: songService.addBlock(get().songs, songId, block) }),
 
   insertBlock: (songId, block, options) => {
-    const newId = uid();
-    set({
-      songs: get().songs.map((s) => {
-        if (s.id !== songId) return s;
-        const newBlock = { ...block, id: newId } as SongBlock;
-        let blocks = s.blocks;
-        if (options?.afterId) {
-          const idx = s.blocks.findIndex((b) => b.id === options.afterId);
-          if (idx === -1) blocks = [...s.blocks, newBlock];
-          else blocks = [...s.blocks.slice(0, idx + 1), newBlock, ...s.blocks.slice(idx + 1)];
-        } else if (options?.beforeId) {
-          const idx = s.blocks.findIndex((b) => b.id === options.beforeId);
-          if (idx === -1) blocks = [...s.blocks, newBlock];
-          else blocks = [...s.blocks.slice(0, idx), newBlock, ...s.blocks.slice(idx)];
-        } else {
-          blocks = [...s.blocks, newBlock];
-        }
-        return { ...s, updatedAt: new Date().toISOString(), blocks };
-      }),
-    });
+    const { songs, newId } = songService.insertBlock(get().songs, songId, block, options);
+    set({ songs });
     return newId;
   },
 
   removeBlock: (songId, blockId) =>
-    set({
-      songs: get().songs.map((s) =>
-        s.id === songId ? { ...s, blocks: s.blocks.filter((b) => b.id !== blockId) } : s,
-      ),
-    }),
+    set({ songs: songService.removeBlock(get().songs, songId, blockId) }),
 
-  inviteCollaborator: (songId, userId, percentage = 0) => {
-    const song = get().songs.find((s) => s.id === songId);
-    if (!song) return;
-    if (song.collaborators.some((c) => c.userId === userId)) return;
-    set({
-      songs: get().songs.map((s) =>
-        s.id === songId
-          ? { ...s, collaborators: [...s.collaborators, { userId, percentage }] }
-          : s,
-      ),
-    });
-  },
+  inviteCollaborator: (songId, userId, percentage = 0) =>
+    set({ songs: songService.inviteCollaborator(get().songs, songId, userId, percentage) }),
 
   setContribution: (songId, userId, percentage) =>
-    set({
-      songs: get().songs.map((s) =>
-        s.id === songId
-          ? {
-              ...s,
-              collaborators: s.collaborators.map((c) =>
-                c.userId === userId ? { ...c, percentage } : c,
-              ),
-            }
-          : s,
-      ),
-    }),
+    set({ songs: songService.setContribution(get().songs, songId, userId, percentage) }),
 
   createFolder: (name, parentId) => {
-    const id = "f_" + uid();
-    set({
-      folders: [...get().folders, { id, name, ownerId: get().currentUserId, parentId }],
-    });
-    return id;
+    const { folders, newId } = folderService.create(get().folders, name, get().currentUserId, parentId);
+    set({ folders });
+    return newId;
   },
 
-  toggleFollow: (userId) =>
-    set({
-      followingIds: get().followingIds.includes(userId)
-        ? get().followingIds.filter((i) => i !== userId)
-        : [...get().followingIds, userId],
-    }),
-
-  sendMessage: (toUserId, content) => {
-    const conv = get().conversations.find((c) => c.withUserId === toUserId);
-    const msg = {
-      id: uid(),
-      fromId: get().currentUserId,
-      toId: toUserId,
-      content,
-      timestamp: new Date().toISOString(),
-    };
-    if (conv) {
-      set({
-        conversations: get().conversations.map((c) =>
-          c.withUserId === toUserId ? { ...c, messages: [...c.messages, msg] } : c,
-        ),
-      });
-    } else {
-      set({
-        conversations: [
-          ...get().conversations,
-          { id: uid(), withUserId: toUserId, messages: [msg] },
-        ],
-      });
-    }
+  toggleFollow: (userId) => {
+    const follows = userService.toggleFollow(get().follows, get().currentUserId, userId);
+    set({ follows, followingIds: userService.getFollowingIds(follows, get().currentUserId) });
   },
 
-  postFeed: (content) =>
+  sendMessage: (toUserId, content) =>
     set({
-      feed: [
-        {
-          id: uid(),
-          type: "post",
-          userId: get().currentUserId,
-          timestamp: new Date().toISOString(),
-          content,
-          likes: 0,
-          comments: 0,
-        },
-        ...get().feed,
-      ],
+      conversations: messageService.send(get().conversations, get().currentUserId, toUserId, content),
     }),
 
-  toggleSongHidden: (songId) =>
-    set({
-      songs: get().songs.map((s) => (s.id === songId ? { ...s, hidden: !s.hidden } : s)),
-    }),
+  postFeed: (content) => set({ feed: feedService.post(get().feed, get().currentUserId, content) }),
 
-  deleteSong: (songId) =>
-    set({
-      songs: get().songs.filter((s) => s.id !== songId),
-      projects: get().projects.map((p) =>
-        p.songIds.includes(songId)
-          ? { ...p, songIds: p.songIds.filter((sid) => sid !== songId) }
-          : p,
-      ),
-    }),
+  toggleSongHidden: (songId) => set({ songs: songService.toggleHidden(get().songs, songId) }),
+
+  deleteSong: (songId) => set({ songs: songService.softDelete(get().songs, songId) }),
+
+  restoreSong: (songId) => set({ songs: songService.restore(get().songs, songId) }),
+
+  permanentlyDeleteSong: (songId) => {
+    const { songs, projects } = songService.permanentDelete(get().songs, get().projects, songId);
+    set({ songs, projects });
+  },
+
+  purgeExpiredTrash: () => {
+    const { songs, projects } = withPurgedTrash(get().songs, get().projects);
+    set({ songs, projects });
+  },
+
+  updateCurrentUser: (patch) =>
+    set({ users: userService.update(get().users, get().currentUserId, patch) }),
 
   createProject: ({ name, type, style, description, releaseDate, fundingGoal, estimatedCost }) => {
-    const id = "p_" + uid();
-    const project: Project = {
-      id,
-      name: name || "Novo projeto",
+    const { projects, newId } = projectService.create(get().projects, {
+      name,
       type,
       style,
-      description: description ?? "",
-      cover:
-        "https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=800&q=70",
-      releaseDate: releaseDate || new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString(),
-      estimatedCost: estimatedCost ?? 0,
-      fundingGoal: fundingGoal ?? 0,
-      fundingProgress: 0,
-      status: "planejamento",
-      songIds: [],
-      collaboratorIds: [get().currentUserId],
       ownerId: get().currentUserId,
-    };
-    set({ projects: [project, ...get().projects] });
-    return id;
+      description,
+      releaseDate,
+      fundingGoal,
+      estimatedCost,
+    });
+    set({ projects });
+    return newId;
   },
 }));

@@ -1,13 +1,16 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Music4, FolderTree, Disc3, Newspaper } from "lucide-react";
+import { LayoutDashboard, Music4, Disc3, Newspaper, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Alinhado à doc de UI (seção 10): Home, Canções, Projetos, Feed, Perfil.
+// "Pastas" saiu daqui — continua acessível no mobile pelo menu da sidebar
+// (SidebarTrigger no header abre o off-canvas com todos os itens).
 const items = [
   { title: "Home", url: "/", icon: LayoutDashboard, end: true },
   { title: "Canções", url: "/songs", icon: Music4 },
-  { title: "Pastas", url: "/folders", icon: FolderTree },
   { title: "Projetos", url: "/projects", icon: Disc3 },
   { title: "Feed", url: "/feed", icon: Newspaper },
+  { title: "Perfil", url: "/profile", icon: UserIcon },
 ];
 
 export function MobileNav() {
