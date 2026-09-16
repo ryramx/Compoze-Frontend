@@ -6,6 +6,8 @@ import {
   Share2,
   Undo2,
   Redo2,
+  Music2,
+  Music4,
 } from "lucide-react";
 import { useCompoze } from "@/store/compozeStore";
 import { Button } from "@/components/ui/button";
@@ -64,6 +66,9 @@ export default function SongEditor() {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
   const [showFloatingToolbar, setShowFloatingToolbar] = useState(false);
+  // Ocultar cifras dá ao letrista uma leitura limpa da letra, sem os acordes
+  // quebrando o texto. Só esconde na exibição: os blocos continuam intactos.
+  const [showChords, setShowChords] = useState(true);
   const blocksAreaRef = useRef<HTMLDivElement>(null);
   const blocksEndRef = useRef<HTMLDivElement>(null);
   // Keep track of the last block the user was editing, even after blur
@@ -151,6 +156,16 @@ export default function SongEditor() {
       endObs.disconnect();
     };
   }, [song?.id]);
+
+  // Blocos efetivamente renderizados. Ocultar cifras é só exibição: os blocos
+  // continuam no documento, então ligar de volta não perde nada.
+  const visibleBlocks = useMemo(
+    () =>
+      showChords
+        ? (song?.blocks ?? [])
+        : (song?.blocks ?? []).filter((b) => b.type !== "chord-line"),
+    [song?.blocks, showChords],
+  );
 
   // Pulse "saving" indicator briefly whenever song updates
   useEffect(() => {
@@ -260,6 +275,22 @@ export default function SongEditor() {
           onChange={(e) => updateSong(song.id, { title: e.target.value })}
           className="h-9 min-w-0 flex-1 border-0 bg-transparent px-2 font-display text-base font-semibold focus-visible:ring-1 md:text-lg"
         />
+
+        {/* Mostrar / ocultar cifras */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8 shrink-0 rounded-full",
+            !showChords && "text-muted-foreground/50",
+          )}
+          onClick={() => setShowChords((v) => !v)}
+          title={showChords ? "Ocultar acordes" : "Mostrar acordes"}
+          aria-label={showChords ? "Ocultar acordes" : "Mostrar acordes"}
+          aria-pressed={showChords}
+        >
+          {showChords ? <Music2 className="h-4 w-4" /> : <Music4 className="h-4 w-4" />}
+        </Button>
 
         {/* Undo / Redo */}
         <div className="flex shrink-0 items-center gap-0.5">
@@ -378,7 +409,7 @@ export default function SongEditor() {
           />
 
           <div ref={blocksAreaRef} className="space-y-0.5">
-            {song.blocks.map((b) => (
+            {visibleBlocks.map((b) => (
               <EditorBlock
                 key={b.id}
                 block={b}

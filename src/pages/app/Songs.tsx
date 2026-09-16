@@ -50,9 +50,17 @@ export default function Songs() {
     const order: Record<SongStatus, number> = {
       ideia: 0, escrita: 1, revisao: 2, finalizada: 3, registrada: 4, gravada: 5,
     };
+    // Busca por título ou por tag: quem organiza por tema ("worship", "rock")
+    // procura pela tag, não pelo título, que muitas vezes ainda nem existe.
+    const termo = query.trim().toLowerCase();
     const list = listActive(songs)
       .filter((s) => (filter === "all" ? true : s.status === filter))
-      .filter((s) => s.title.toLowerCase().includes(query.toLowerCase()));
+      .filter(
+        (s) =>
+          !termo ||
+          s.title.toLowerCase().includes(termo) ||
+          (s.tags ?? []).some((t) => t.toLowerCase().includes(termo)),
+      );
     if (sort === "recent") return [...list].sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt));
     if (sort === "old") return [...list].sort((a, b) => +new Date(a.updatedAt) - +new Date(b.updatedAt));
     return [...list].sort((a, b) => order[a.status] - order[b.status]);
@@ -84,7 +92,7 @@ export default function Songs() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar canções"
+            placeholder="Buscar canções ou tags"
             className="rounded-full bg-muted/40 pl-9"
           />
         </div>
