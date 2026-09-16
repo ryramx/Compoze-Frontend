@@ -56,7 +56,7 @@ export default function Folders() {
               : "Canções e projetos desta pasta."}
           </p>
         </div>
-        <NewFolderDialog onCreate={(name) => createFolder(name, currentId)}>
+        <NewFolderDialog onCreate={(name) => void createFolder(name, currentId)}>
           <Button className="rounded-full bg-primary text-primary-foreground shadow-glow hover:bg-primary/90">
             <FolderPlus className="h-4 w-4" /> Nova pasta
           </Button>

@@ -96,8 +96,8 @@ export default function AppLayout() {
               <NotificationsPopover />
               <Button
                 size="sm"
-                onClick={() => {
-                  const id = createSong({ title: "Nova canção" });
+                onClick={async () => {
+                  const id = await createSong({ title: "Nova canção" });
                   navigate(`/songs/${id}/edit`);
                 }}
                 className="hidden sm:inline-flex rounded-full bg-gradient-hero text-primary-foreground shadow-glow hover:opacity-90"

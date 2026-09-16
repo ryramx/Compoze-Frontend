@@ -68,8 +68,8 @@ export function NewProjectDialog({ children }: Props) {
     },
   });
 
-  const handleCreate = (values: FormValues) => {
-    const id = createProject({
+  const handleCreate = async (values: FormValues) => {
+    const id = await createProject({
       name: values.name.trim(),
       type: values.type,
       style: values.style,

@@ -76,8 +76,8 @@ export default function Songs() {
           </p>
         </div>
         <Button
-          onClick={() => {
-            const id = createSong({ title: "Nova canção" });
+          onClick={async () => {
+            const id = await createSong({ title: "Nova canção" });
             navigate(`/songs/${id}/edit`);
           }}
           className="rounded-full bg-primary text-primary-foreground shadow-glow hover:bg-primary/90"

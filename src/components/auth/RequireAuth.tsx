@@ -3,9 +3,10 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/store/authStore";
+import { useCompoze } from "@/store/compozeStore";
 
 /**
- * Impede o acesso às telas do app sem sessão.
+ * Impede o acesso às telas do app sem sessão, e carrega os dados ao entrar.
  *
  * Não substitui a autorização do servidor: o backend verifica cada requisição
  * (PRD §26). Isto é conveniência de navegação — evita telas vazias e
@@ -13,6 +14,8 @@ import { useAuth } from "@/store/authStore";
  */
 export function RequireAuth() {
   const { user, carregando, restaurarSessao } = useAuth();
+  const hidratado = useCompoze((s) => s.hidratado);
+  const hydrate = useCompoze((s) => s.hydrate);
   const location = useLocation();
 
   useEffect(() => {
@@ -20,6 +23,12 @@ export function RequireAuth() {
     // então esta é a primeira coisa que acontece antes de decidir redirecionar.
     if (carregando) void restaurarSessao();
   }, [carregando, restaurarSessao]);
+
+  useEffect(() => {
+    // Carrega músicas, pastas e projetos assim que houver sessão. Fica aqui, e
+    // não no login, para cobrir também quem chega com sessão restaurada.
+    if (user && !hidratado) void hydrate(user.id);
+  }, [user, hidratado, hydrate]);
 
   // Enquanto não se sabe, não redireciona: chutar para o login aqui faria quem
   // recarrega a página passar pela tela de entrada antes da sessão voltar.

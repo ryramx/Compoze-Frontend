@@ -233,7 +233,7 @@ export default function SongEditor() {
   //   sit above the lyric it relates to, for visual alignment).
   // - Any other case: insert BELOW the focused block.
   // - No focus at all: append at the end (fallback).
-  const handleInsertBlock = (type: "section" | "chord-line" | "lyric-line" | "note") => {
+  const handleInsertBlock = async (type: "section" | "chord-line" | "lyric-line" | "note") => {
     const newBlock = {
       type,
       label: type === "section" ? "Nova seção" : undefined,
@@ -250,7 +250,9 @@ export default function SongEditor() {
         options = { afterId: anchor.id };
       }
     }
-    const newId = insertBlock(song.id, newBlock, options);
+    // insertBlock agora grava no servidor antes de devolver o id do bloco, por
+    // isso o await: focar um id que ainda não existe deixaria o cursor perdido.
+    const newId = await insertBlock(song.id, newBlock, options);
     setPendingFocusId(newId);
     setFocusedBlockId(newId);
     lastFocusedBlockIdRef.current = newId;
@@ -429,8 +431,8 @@ export default function SongEditor() {
                 isFocused={focusedBlockId === b.id}
                 shouldFocus={pendingFocusId === b.id}
                 onFocusHandled={() => setPendingFocusId(null)}
-                onEnter={() => {
-                  const newId = insertBlock(
+                onEnter={async () => {
+                  const newId = await insertBlock(
                     song.id,
                     { type: "lyric-line", text: "", authorId: me.id },
                     { afterId: b.id },
@@ -450,7 +452,7 @@ export default function SongEditor() {
               showFloatingToolbar && "pointer-events-none opacity-0",
             )}
           >
-            <BlockInsertButtons onInsert={(type) => handleInsertBlock(type)} />
+            <BlockInsertButtons onInsert={(type) => void handleInsertBlock(type)} />
           </div>
 
           <CoauthorshipPanel
@@ -502,7 +504,7 @@ export default function SongEditor() {
         aria-hidden={!showFloatingToolbar}
       >
         <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-2">
-          <BlockInsertButtons onInsert={(type) => handleInsertBlock(type)} />
+          <BlockInsertButtons onInsert={(type) => void handleInsertBlock(type)} />
         </div>
       </div>
     </div>
