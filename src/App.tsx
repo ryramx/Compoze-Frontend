@@ -18,6 +18,9 @@ import Trash from "./pages/app/Trash";
 import Settings from "./pages/app/Settings";
 import NotFound from "./pages/NotFound";
 import { queryClient } from "@/lib/queryClient";
+import { RequireAuth } from "@/components/auth/RequireAuth";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -26,20 +29,29 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/songs" element={<Songs />} />
-            <Route path="/songs/:id/edit" element={<SongEditor />} />
-            <Route path="/folders" element={<Folders />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/projects/:id" element={<ProjectDetail />} />
-            <Route path="/feed" element={<Feed />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/map" element={<MapPage />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/profile/:username" element={<Profile />} />
-            <Route path="/trash" element={<Trash />} />
-            <Route path="/settings" element={<Settings />} />
+          {/* Rotas publicas: quem nao entrou nao ve sidebar nem busca global. */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/cadastro" element={<Register />} />
+
+          {/* Tudo abaixo exige sessao. O backend verifica cada requisicao de
+              qualquer forma (PRD 26); isto evita telas vazias e chamadas que
+              so voltariam 401. */}
+          <Route element={<RequireAuth />}>
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/songs" element={<Songs />} />
+              <Route path="/songs/:id/edit" element={<SongEditor />} />
+              <Route path="/folders" element={<Folders />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetail />} />
+              <Route path="/feed" element={<Feed />} />
+              <Route path="/messages" element={<Messages />} />
+              <Route path="/map" element={<MapPage />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/:username" element={<Profile />} />
+              <Route path="/trash" element={<Trash />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
