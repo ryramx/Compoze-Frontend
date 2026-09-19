@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import * as authService from "@/services/api/authService";
 import type { DadosCadastro } from "@/services/api/authService";
+import { useCompoze } from "@/store/compozeStore";
 import type { User } from "@/types";
 
 type Estado = {
@@ -44,6 +45,9 @@ export const useAuth = create<Estado & Acoes>((set) => ({
 
   logout: () => {
     authService.logout();
+    // Limpa também os dados carregados: sem isto, entrar com outra conta em
+    // seguida mostraria as músicas da anterior até a nova carga terminar.
+    useCompoze.getState().limpar();
     set({ user: null, carregando: false });
   },
 
